@@ -13,7 +13,9 @@ import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,9 +27,17 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     private Camera cam;
     private SurfaceHolder holder;
     private Point displaySize;
+    private OutputStreamWriter osw;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        try {
+            FileOutputStream fOut = openFileOutput("DROID_MAXX.txt", MODE_PRIVATE);
+            this.osw = new OutputStreamWriter(fOut);
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
         //Remove title bar
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
@@ -194,12 +204,20 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             float[] floats = new float[3];
             this.cam.getParameters().getFocusDistances(floats);
             if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS))//not inf focus distances
-                System.out.println(floats[0] + " "+floats[1] + " "+floats[2]);
+                this.writeToOutput(floats[0] + ", "+floats[1] + ", "+floats[2]);
             else
                 System.out.println("infinity or not focused");
         }
-//        System.out.println(this.cam.getParameters().getFocalLength());
         return true;
-        //return super.onTouchEvent(event);
     }
+
+    private void writeToOutput(String message) {
+        try {
+            this.osw.write(message);
+        }
+        catch(IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
 }
