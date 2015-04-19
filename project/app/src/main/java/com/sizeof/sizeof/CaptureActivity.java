@@ -1,25 +1,30 @@
 package com.sizeof.sizeof;
 
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static android.view.View.resolveSize;
 
 
 public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.Callback {
+    private final double[] DROID_MAXX_INF_FOCUS_DISTS = {1.218732, 2.043917, 6.329597};
     private Camera cam;
     private SurfaceHolder holder;
+    private Point displaySize;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +38,8 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         SurfaceView view = (SurfaceView)(findViewById(R.id.surfaceView));
         this.holder = view.getHolder();//FIXME null check
         this.holder.addCallback(this);
+        this.displaySize = new Point();
+        this.getWindowManager().getDefaultDisplay().getSize(this.displaySize);
     }
 
     @Override
@@ -76,18 +83,10 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         }
         Camera.Parameters camSettings = this.cam.getParameters();
         List<Camera.Size> sizes = camSettings.getSupportedPreviewSizes();
-        Point size = new Point();
-        getWindowManager().getDefaultDisplay().getSize(size);
-        Camera.Size optimal = getOptimalPreviewSize(sizes, size.x, size.y);
+        Camera.Size optimal = getOptimalPreviewSize(sizes, this.displaySize.x, this.displaySize.y);
         camSettings.setPreviewSize(optimal.width, optimal.height);
+        camSettings.setFocusAreas(new ArrayList<Camera.Area>());//no focus areas to start
         this.holder.setFixedSize(optimal.width, optimal.height);
-        if (camSettings.isSmoothZoomSupported())
-            this.cam.startSmoothZoom(0);
-        else
-            if (camSettings.isZoomSupported())
-                camSettings.setZoom(0);//start zoomed out
-            else
-                System.out.println("Zoom Not Supported! D:");
         this.cam.setDisplayOrientation(90);
         this.cam.setParameters(camSettings);//apply settings
         try {
@@ -159,7 +158,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     public void surfaceChanged(final SurfaceHolder surfaceHolder, final int format, final int width, final int height) {
         if (this.holder.getSurface() == null) {
             System.out.println("Null surface D:");
-            return ;
+            return;
         }
 
         try {
@@ -170,5 +169,37 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         catch (Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        int action = event.getAction();
+        if (action == MotionEvent.ACTION_DOWN) {
+//            if (this.cam.getParameters().getFocusMode())
+            Camera.Parameters camSettings = this.cam.getParameters();
+            camSettings.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            int x = (int) event.getX();
+            int y = (int) event.getY();
+            int width = 125;//250px X 250px focus area
+            int left = (int)(((double)x / this.displaySize.x) * 2000 - 1000) - width;//scale to [-1000,1000]
+            int top = (int)(((double)y / this.displaySize.y) * 2000 - 1000) - width;//see SDK 21 Camera.setFocusAreas
+            int right = left + 2 * width;
+            int bottom = top + 2 * width;
+            Camera.Area focusArea = new Camera.Area(new Rect(left, top, right, bottom), 1000);
+            ArrayList<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
+            focusAreas.add(focusArea);
+            camSettings.setFocusAreas(focusAreas);
+            this.cam.setParameters(camSettings);
+            this.cam.autoFocus(null);//apply focus area
+            float[] floats = new float[3];
+            this.cam.getParameters().getFocusDistances(floats);
+            if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS))//not inf focus distances
+                System.out.println(floats[0] + " "+floats[1] + " "+floats[2]);
+            else
+                System.out.println("infinity or not focused");
+        }
+//        System.out.println(this.cam.getParameters().getFocalLength());
+        return true;
+        //return super.onTouchEvent(event);
     }
 }
