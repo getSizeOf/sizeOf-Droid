@@ -19,25 +19,16 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import static android.view.View.resolveSize;
-
-
 public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.Callback {
     private final double[] DROID_MAXX_INF_FOCUS_DISTS = {1.218732, 2.043917, 6.329597};
     private Camera cam;
     private SurfaceHolder holder;
     private Point displaySize;
     private OutputStreamWriter osw;
+    private FileOutputStream fOut;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        try {
-            FileOutputStream fOut = openFileOutput("DROID_MAXX.txt", MODE_PRIVATE);
-            this.osw = new OutputStreamWriter(fOut);
-        }
-        catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
         //Remove title bar
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
@@ -77,13 +68,22 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     @Override
     public void onResume() {
         super.onResume();
+        try {
+            if (this.fOut == null)
+                this.fOut = openFileOutput("DROID_MAXX.txt", MODE_PRIVATE);
+            if (this.osw == null)
+                this.osw = new OutputStreamWriter(this.fOut);
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
         this.cam = Camera.open();
         this.cam.setErrorCallback(new Camera.ErrorCallback() {
             @Override
             public void onError(int error, Camera camera) {
                 if (error == 100) {//media server died
                     cam.release();
-                    cam = Camera.open();
+                    cam = Camera.open();//re-open
                 }
             }
         });
@@ -147,6 +147,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         this.cam.stopPreview();
         if (this.cam != null)
             this.cam.release();
+        this.cleanUpFileOutput();
     }
 
     @Override
@@ -161,7 +162,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
 
     @Override
     public void surfaceDestroyed(final SurfaceHolder surfaceHolder) {
-        // ...
+        //do nothing
     }
 
     @Override
@@ -170,7 +171,6 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             System.out.println("Null surface D:");
             return;
         }
-
         try {
             this.cam.stopPreview();
             this.cam.setPreviewDisplay(this.holder);
@@ -204,7 +204,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             float[] floats = new float[3];
             this.cam.getParameters().getFocusDistances(floats);
             if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS))//not inf focus distances
-                this.writeToOutput(floats[0] + ", "+floats[1] + ", "+floats[2]);
+                this.writeToOutput(floats[0] + ", "+floats[1] + ", "+floats[2]);//simple readable CSV
             else
                 System.out.println("infinity or not focused");
         }
@@ -220,4 +220,23 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         }
     }
 
+    private void cleanUpFileOutput() {
+        try {
+            if (this.osw != null) {
+                this.osw.flush();
+                this.osw.close();
+            }
+            if (this.fOut != null) {
+                this.fOut.flush();
+                this.fOut.close();
+            }
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        finally {
+            this.osw = null;//reset to null to mark as
+            this.fOut = null;//closed for re-open next onResume()
+        }
+    }
 }
