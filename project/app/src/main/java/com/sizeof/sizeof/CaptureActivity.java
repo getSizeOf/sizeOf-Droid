@@ -13,10 +13,11 @@ import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
 
-import java.io.FileOutputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.Callback {
@@ -24,14 +25,15 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     private Camera cam;
     private SurfaceHolder holder;
     private Point displaySize;
-    private OutputStreamWriter osw;
-    private FileOutputStream fOut;
+    private FileWriter fileWriter;
+    private File file;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         //Remove title bar
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
+        this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX.txt");
         //Remove notification bar
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //set content view AFTER ABOVE sequence (to avoid crash)
@@ -69,10 +71,8 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     public void onResume() {
         super.onResume();
         try {
-            if (this.fOut == null)
-                this.fOut = openFileOutput("DROID_MAXX.txt", MODE_PRIVATE);
-            if (this.osw == null)
-                this.osw = new OutputStreamWriter(this.fOut);
+            if (this.fileWriter == null)
+                this.fileWriter = new FileWriter(this.file);
         }
         catch (IOException e) {
             System.out.println(e.getMessage());
@@ -91,13 +91,22 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             System.out.println("Camera opening returned null! D:");
             return;//TODO
         }
+        Camera.Size max = null;
+        for (Camera.Size size : this.cam.getParameters().getSupportedPictureSizes()) {
+            System.out.println(size.width + " " + size.height);
+            if (max == null)
+                max = size;
+            else if (max.height * max.width < size.height * size.width)
+                max = size;
+        }
         Camera.Parameters camSettings = this.cam.getParameters();
+        camSettings.setPictureSize(max.width, max.height);
         List<Camera.Size> sizes = camSettings.getSupportedPreviewSizes();
         Camera.Size optimal = getOptimalPreviewSize(sizes, this.displaySize.x, this.displaySize.y);
         camSettings.setPreviewSize(optimal.width, optimal.height);
-        camSettings.setFocusAreas(new ArrayList<Camera.Area>());//no focus areas to start
+        camSettings.setFocusAreas(new ArrayList<Camera.Area>());//reset focus areas
         this.holder.setFixedSize(optimal.width, optimal.height);
-        this.cam.setDisplayOrientation(90);
+        this.cam.setDisplayOrientation(90);//portrait
         this.cam.setParameters(camSettings);//apply settings
         try {
             this.cam.setPreviewDisplay(this.holder);
@@ -111,7 +120,6 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     private Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
         final double ASPECT_TOLERANCE = 0.1;
         double targetRatio = (double)h / w;
-        System.out.println(w);
 
         if (sizes == null) return null;
 
@@ -213,7 +221,9 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
 
     private void writeToOutput(String message) {
         try {
-            this.osw.write(message);
+            this.fileWriter.write(message);
+            this.fileWriter.write('\n');
+            this.fileWriter.flush();
         }
         catch(IOException e) {
             System.out.println(e.getMessage());
@@ -222,21 +232,14 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
 
     private void cleanUpFileOutput() {
         try {
-            if (this.osw != null) {
-                this.osw.flush();
-                this.osw.close();
-            }
-            if (this.fOut != null) {
-                this.fOut.flush();
-                this.fOut.close();
-            }
+            if (this.fileWriter != null)
+                this.fileWriter.close();
         }
         catch (IOException e) {
             System.out.println(e.getMessage());
         }
         finally {
-            this.osw = null;//reset to null to mark as
-            this.fOut = null;//closed for re-open next onResume()
+            this.fileWriter = null;//reset to null to mark as closed
         }
     }
 }
