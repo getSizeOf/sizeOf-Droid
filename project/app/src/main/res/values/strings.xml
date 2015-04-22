@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">sizeOf()</string>
     <string name="action_settings">Settings</string>
+    <string name="capture_img">Capture Image</string>
+    <string name="record_data">Record Data Point</string>
 </resources>
