@@ -216,7 +216,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
-        if (action == MotionEvent.ACTION_DOWN) {//focus on tapped area
+        if (action == MotionEvent.ACTION_DOWN) {//focus on tapped area, clean away selection box
             this.tracableView.setOrig(null);
             this.tracableView.setOther(null);
             if (this.cam != null) {
@@ -242,7 +242,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
                 this.cam.autoFocus(null);//apply focus area
             }
         }
-        else if (action == MotionEvent.ACTION_MOVE) {
+        else if (action == MotionEvent.ACTION_MOVE) {//draw selection box
             if (!this.tracableView.isOrigSet()) {
                 this.tracableView.setOrig((int)event.getRawX(), (int)event.getRawY());
                 this.tracableView.setOther(null);
@@ -250,6 +250,9 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             else {
                 this.tracableView.setOther((int) event.getRawX(), (int) event.getRawY());
             }
+        }
+        else if (action == MotionEvent.ACTION_UP) {//calculate size and report to user
+
         }
         this.tracableView.forceRedraw();
         return true;
