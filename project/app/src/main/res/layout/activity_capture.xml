@@ -1,9 +1,29 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
-    android:layout_height="match_parent" tools:context=".CaptureActivity">
-
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="fill_parent"
+    android:layout_height="fill_parent" tools:context=".CaptureActivity"
+    android:orientation="vertical"
+    android:clickable="false">
     <SurfaceView
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:layout_weight="100"
+        android:layout_height="0dp"
         android:id="@+id/surfaceView"/>
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+        <Button
+            android:id="@+id/capture_image"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/capture_img" />
+        <Button
+            android:id="@+id/capture_data"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/record_data"
+            android:clickable="false" />
+    </LinearLayout>
+
 </LinearLayout>
