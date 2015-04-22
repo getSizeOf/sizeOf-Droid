@@ -1,12 +1,7 @@
 package com.sizeof.sizeof;
 
 import android.content.Intent;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PixelFormat;
 import android.graphics.Point;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -14,7 +9,6 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -33,8 +27,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     private final double[] DROID_MAXX_INF_FOCUS_DISTS = {1.218732, 2.043917, 6.329597};
     private Camera cam;
     private SurfaceView surfaceView;
-    private SurfaceView transparentView;
-    private Point orig, other;
+    private TracableView tracableView;
     private Point displaySize;
     private FileWriter fileWriter;
     private File file;
@@ -67,27 +60,13 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
                     capture();
             }
         });
+        this.tracableView = (TracableView)findViewById(R.id.drawView);
+        this.tracableView.setWillNotDraw(false);
         this.surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
         SurfaceHolder surfHolder = this.surfaceView.getHolder();
         surfHolder.addCallback(this);
         this.displaySize = new Point();
         this.getWindowManager().getDefaultDisplay().getSize(this.displaySize);
-    }
-
-    private void drawRect() {
-        SurfaceHolder holder = surfaceView.getHolder();
-        Canvas canvas = holder.lockCanvas();
-        canvas.drawColor(0, PorterDuff.Mode.CLEAR);
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setColor(Color.RED);
-        paint.setStrokeWidth(3);
-        int left = Math.min(this.orig.x, this.other.x);
-        int right = left == this.orig.x ? this.other.x : this.orig.x;
-        int top = Math.min(this.orig.y, this.other.y);
-        int bottom = top == this.orig.y ? this.other.y : this.orig.y;
-        canvas.drawRect(left, top, right, bottom, paint);
-        holder.unlockCanvasAndPost(canvas);
     }
 
     @Override
@@ -206,7 +185,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     public void surfaceCreated(final SurfaceHolder surfaceHolder) {
         try {
             this.cam.stopPreview();
-            this.cam.setPreviewDisplay(surfaceHolder);
+            this.cam.setPreviewDisplay(this.surfaceView.getHolder());
         }
         catch (Exception e) {
             System.out.println(e.getMessage());
@@ -238,15 +217,16 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
         if (action == MotionEvent.ACTION_DOWN) {//focus on tapped area
-            if (this.cam == null) {
-                this.orig = new Point((int)event.getX(), (int)event.getY());
-                this.other = null;
-            }
-            else {
+//            if (this.cam == null) {
+                this.tracableView.setOrig((int)event.getRawX(), (int)event.getRawY());
+                this.tracableView.setOther(null);
+//            }
+//            else {
+            if (this.cam != null) {
                 Camera.Parameters camSettings = this.cam.getParameters();
                 camSettings.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-                int x = (int) event.getX();
-                int y = (int) event.getY();
+                int x = (int) event.getRawX();
+                int y = (int) event.getRawY();
                 int width = 125;//250px X 250px focus area
                 int left = (int) (((double) x / this.displaySize.x) * 2000 - 1000) - width;//scale to [-1000,1000]
                 int top = (int) (((double) y / this.displaySize.y) * 2000 - 1000) - width;//see SDK 21 Camera.setFocusAreas
@@ -260,9 +240,10 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
                 this.cam.autoFocus(null);//apply focus area
             }
         }
-        else if (action == MotionEvent.ACTION_MOVE && this.cam == null) {
-            this.other = new Point((int)event.getX(), (int)event.getY());
+        else if (action == MotionEvent.ACTION_MOVE) {
+            this.tracableView.setOther((int)event.getRawX(), (int)event.getRawY());
         }
+        this.tracableView.forceRedraw();
         return true;
     }
 
