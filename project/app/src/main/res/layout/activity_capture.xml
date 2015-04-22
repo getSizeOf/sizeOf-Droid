@@ -1,16 +1,22 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="fill_parent"
     android:layout_height="fill_parent" tools:context=".CaptureActivity"
     android:orientation="vertical"
-    android:clickable="false">
+    android:clickable="false"
+    android:layout_gravity="bottom|start" >
     <SurfaceView
         android:layout_width="fill_parent"
         android:layout_weight="100"
-        android:layout_height="0dp"
+        android:layout_height="fill_parent"
         android:id="@+id/surfaceView"/>
+    <com.sizeof.sizeof.TracableView
+        android:id="@+id/drawView"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent" />
     <LinearLayout
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom">
         <Button
             android:id="@+id/capture_image"
             android:layout_width="0dp"
@@ -26,4 +32,4 @@
             android:clickable="false" />
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>
