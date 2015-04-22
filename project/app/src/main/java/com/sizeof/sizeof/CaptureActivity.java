@@ -217,11 +217,8 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
         if (action == MotionEvent.ACTION_DOWN) {//focus on tapped area
-//            if (this.cam == null) {
-                this.tracableView.setOrig((int)event.getRawX(), (int)event.getRawY());
-                this.tracableView.setOther(null);
-//            }
-//            else {
+            this.tracableView.setOrig(null);
+            this.tracableView.setOther(null);
             if (this.cam != null) {
                 Camera.Parameters camSettings = this.cam.getParameters();
                 camSettings.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
@@ -236,12 +233,23 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
                 ArrayList<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
                 focusAreas.add(focusArea);
                 camSettings.setFocusAreas(focusAreas);
-                this.cam.setParameters(camSettings);
+                try {
+                    this.cam.setParameters(camSettings);
+                }
+                catch (RuntimeException e) {
+                    System.out.println(e.getMessage());
+                }
                 this.cam.autoFocus(null);//apply focus area
             }
         }
         else if (action == MotionEvent.ACTION_MOVE) {
-            this.tracableView.setOther((int)event.getRawX(), (int)event.getRawY());
+            if (!this.tracableView.isOrigSet()) {
+                this.tracableView.setOrig((int)event.getRawX(), (int)event.getRawY());
+                this.tracableView.setOther(null);
+            }
+            else {
+                this.tracableView.setOther((int) event.getRawX(), (int) event.getRawY());
+            }
         }
         this.tracableView.forceRedraw();
         return true;
