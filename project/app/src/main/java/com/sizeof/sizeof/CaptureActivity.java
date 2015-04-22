@@ -1,6 +1,12 @@
 package com.sizeof.sizeof;
 
+import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.Point;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -8,41 +14,80 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.Callback {
     private final double[] DROID_MAXX_INF_FOCUS_DISTS = {1.218732, 2.043917, 6.329597};
     private Camera cam;
-    private SurfaceHolder holder;
+    private SurfaceView surfaceView;
+    private SurfaceView transparentView;
+    private Point orig, other;
     private Point displaySize;
     private FileWriter fileWriter;
     private File file;
+    private Button capture_image;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         //Remove title bar
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
+        //calibration data output file
         this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX.txt");
         //Remove notification bar
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //set content view AFTER ABOVE sequence (to avoid crash)
         this.setContentView(R.layout.activity_capture);
-        SurfaceView view = (SurfaceView)(findViewById(R.id.surfaceView));
-        this.holder = view.getHolder();//FIXME null check
-        this.holder.addCallback(this);
+        final Button button = (Button)findViewById(R.id.capture_data);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                writeFocalData();
+            }
+        });
+        capture_image = (Button) findViewById(R.id.capture_image);
+        capture_image.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                if (cam != null)
+                    capture();
+            }
+        });
+        this.surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
+        SurfaceHolder surfHolder = this.surfaceView.getHolder();
+        surfHolder.addCallback(this);
         this.displaySize = new Point();
         this.getWindowManager().getDefaultDisplay().getSize(this.displaySize);
+    }
+
+    private void drawRect() {
+        SurfaceHolder holder = surfaceView.getHolder();
+        Canvas canvas = holder.lockCanvas();
+        canvas.drawColor(0, PorterDuff.Mode.CLEAR);
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(Color.RED);
+        paint.setStrokeWidth(3);
+        int left = Math.min(this.orig.x, this.other.x);
+        int right = left == this.orig.x ? this.other.x : this.orig.x;
+        int top = Math.min(this.orig.y, this.other.y);
+        int bottom = top == this.orig.y ? this.other.y : this.orig.y;
+        canvas.drawRect(left, top, right, bottom, paint);
+        holder.unlockCanvasAndPost(canvas);
     }
 
     @Override
@@ -92,24 +137,22 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
             return;//TODO
         }
         Camera.Size max = null;
-        for (Camera.Size size : this.cam.getParameters().getSupportedPictureSizes()) {
-            System.out.println(size.width + " " + size.height);
+        for (Camera.Size size : this.cam.getParameters().getSupportedPictureSizes())
             if (max == null)
                 max = size;
             else if (max.height * max.width < size.height * size.width)
                 max = size;
-        }
         Camera.Parameters camSettings = this.cam.getParameters();
         camSettings.setPictureSize(max.width, max.height);
         List<Camera.Size> sizes = camSettings.getSupportedPreviewSizes();
         Camera.Size optimal = getOptimalPreviewSize(sizes, this.displaySize.x, this.displaySize.y);
         camSettings.setPreviewSize(optimal.width, optimal.height);
         camSettings.setFocusAreas(new ArrayList<Camera.Area>());//reset focus areas
-        this.holder.setFixedSize(optimal.width, optimal.height);
+        this.surfaceView.getHolder().setFixedSize(optimal.width, optimal.height);
         this.cam.setDisplayOrientation(90);//portrait
         this.cam.setParameters(camSettings);//apply settings
         try {
-            this.cam.setPreviewDisplay(this.holder);
+            this.cam.setPreviewDisplay(this.surfaceView.getHolder());
             this.cam.startPreview();
         }
         catch (IOException e) {
@@ -152,15 +195,17 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     @Override
     public void onPause() {
         super.onPause();
-        this.cam.stopPreview();
-        if (this.cam != null)
+        if (this.cam != null) {
+            this.cam.stopPreview();
             this.cam.release();
+        }
         this.cleanUpFileOutput();
     }
 
     @Override
     public void surfaceCreated(final SurfaceHolder surfaceHolder) {
         try {
+            this.cam.stopPreview();
             this.cam.setPreviewDisplay(surfaceHolder);
         }
         catch (Exception e) {
@@ -175,13 +220,13 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
 
     @Override
     public void surfaceChanged(final SurfaceHolder surfaceHolder, final int format, final int width, final int height) {
-        if (this.holder.getSurface() == null) {
+        if (this.surfaceView == null) {
             System.out.println("Null surface D:");
             return;
         }
         try {
             this.cam.stopPreview();
-            this.cam.setPreviewDisplay(this.holder);
+            this.cam.setPreviewDisplay(this.surfaceView.getHolder());
             this.cam.startPreview();
         }
         catch (Exception e) {
@@ -192,31 +237,64 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
-        if (action == MotionEvent.ACTION_DOWN) {
-//            if (this.cam.getParameters().getFocusMode())
-            Camera.Parameters camSettings = this.cam.getParameters();
-            camSettings.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-            int x = (int) event.getX();
-            int y = (int) event.getY();
-            int width = 125;//250px X 250px focus area
-            int left = (int)(((double)x / this.displaySize.x) * 2000 - 1000) - width;//scale to [-1000,1000]
-            int top = (int)(((double)y / this.displaySize.y) * 2000 - 1000) - width;//see SDK 21 Camera.setFocusAreas
-            int right = left + 2 * width;
-            int bottom = top + 2 * width;
-            Camera.Area focusArea = new Camera.Area(new Rect(left, top, right, bottom), 1000);
-            ArrayList<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
-            focusAreas.add(focusArea);
-            camSettings.setFocusAreas(focusAreas);
-            this.cam.setParameters(camSettings);
-            this.cam.autoFocus(null);//apply focus area
-            float[] floats = new float[3];
-            this.cam.getParameters().getFocusDistances(floats);
-            if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS))//not inf focus distances
-                this.writeToOutput(floats[0] + ", "+floats[1] + ", "+floats[2]);//simple readable CSV
-            else
-                System.out.println("infinity or not focused");
+        if (action == MotionEvent.ACTION_DOWN) {//focus on tapped area
+            if (this.cam == null) {
+                this.orig = new Point((int)event.getX(), (int)event.getY());
+                this.other = null;
+            }
+            else {
+                Camera.Parameters camSettings = this.cam.getParameters();
+                camSettings.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                int x = (int) event.getX();
+                int y = (int) event.getY();
+                int width = 125;//250px X 250px focus area
+                int left = (int) (((double) x / this.displaySize.x) * 2000 - 1000) - width;//scale to [-1000,1000]
+                int top = (int) (((double) y / this.displaySize.y) * 2000 - 1000) - width;//see SDK 21 Camera.setFocusAreas
+                int right = left + 2 * width;
+                int bottom = top + 2 * width;
+                Camera.Area focusArea = new Camera.Area(new Rect(left, top, right, bottom), 1000);
+                ArrayList<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
+                focusAreas.add(focusArea);
+                camSettings.setFocusAreas(focusAreas);
+                this.cam.setParameters(camSettings);
+                this.cam.autoFocus(null);//apply focus area
+            }
+        }
+        else if (action == MotionEvent.ACTION_MOVE && this.cam == null) {
+            this.other = new Point((int)event.getX(), (int)event.getY());
         }
         return true;
+    }
+
+    private void capture() {
+        this.cam.takePicture(null, null, null, new Camera.PictureCallback() {
+
+            @Override
+            public void onPictureTaken(byte[] data, Camera camera) {
+                Toast.makeText(getApplicationContext(), "Picture Taken",
+                        Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent();
+                intent.putExtra("image_arr", data);
+                setResult(RESULT_OK, intent);
+                cam.stopPreview();
+                if (cam != null) {
+                    cam.release();
+                    cam = null;
+                }
+            }
+        });
+    }
+
+    private void writeFocalData() {
+        float[] floats = new float[3];
+        this.cam.getParameters().getFocusDistances(floats);
+        if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS)) {//not inf focus distances
+            Toast.makeText(getApplicationContext(), "Data Point Recorded", Toast.LENGTH_SHORT).show();
+            this.writeToOutput(floats[0] + ", " + floats[1] + ", " + floats[2]);//simple readable CSV
+        }
+        else
+            Toast.makeText(getApplicationContext(), "Object Not In Range / Out of Focus",
+                    Toast.LENGTH_SHORT).show();
     }
 
     private void writeToOutput(String message) {
