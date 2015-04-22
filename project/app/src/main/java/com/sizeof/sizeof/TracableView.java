@@ -84,6 +84,12 @@ public class TracableView extends View {
             int top = Math.min(this.orig.y, this.other.y);
             int bottom = top == this.orig.y ? this.other.y : this.orig.y;
             canvas.drawRect(left, top, right, bottom, paint);
+            String locStr = "width: " + ((Integer)(right-left)).toString() + "\nheight: " +
+                    ((Integer)(bottom-top)).toString();
+            Paint textPaint = new Paint();
+            textPaint.setColor(Color.CYAN);
+            textPaint.setTextSize(32);
+            canvas.drawText(locStr, left+1, top+1, textPaint);
             //this.getHolder().unlockCanvasAndPost(canvas);
         }
     }
