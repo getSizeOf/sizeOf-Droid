@@ -24,6 +24,14 @@ public class TracableView extends View {
         super(context, attributeSet);
     }
 
+    public boolean isOrigSet() {
+        return this.orig != null;
+    }
+
+    public boolean isOtherSet() {
+        return this.other != null;
+    }
+
     public void setOrig(Point orig) {
         if (orig == null)
             this.orig = null;
@@ -41,7 +49,8 @@ public class TracableView extends View {
     private Point convertToRelativePoint(Point absPoint) {
         int[] loc = new int[2];
         this.getLocationOnScreen(loc);//get this view's location offset values
-        return new Point(absPoint.x - loc[0], absPoint.y - loc[1]);
+        absPoint.offset(-loc[0], -loc[1]);
+        return absPoint;
     }
 
     public void setOrig(int x, int y) {
@@ -73,7 +82,6 @@ public class TracableView extends View {
     @Override
     public void onDraw(Canvas canvas) {
         if (this.orig != null && this.other != null) {
-            //Canvas canvas = this.getHolder().lockCanvas();
             canvas.drawColor(0, PorterDuff.Mode.CLEAR);
             Paint paint = new Paint();
             paint.setStyle(Paint.Style.STROKE);
@@ -84,13 +92,20 @@ public class TracableView extends View {
             int top = Math.min(this.orig.y, this.other.y);
             int bottom = top == this.orig.y ? this.other.y : this.orig.y;
             canvas.drawRect(left, top, right, bottom, paint);
-            String locStr = "width: " + ((Integer)(right-left)).toString() + "\nheight: " +
+            String locStr = "width: " + ((Integer)(right-left)).toString() + " height: " +
                     ((Integer)(bottom-top)).toString();
             Paint textPaint = new Paint();
             textPaint.setColor(Color.CYAN);
             textPaint.setTextSize(32);
-            canvas.drawText(locStr, left+1, top+1, textPaint);
-            //this.getHolder().unlockCanvasAndPost(canvas);
+            canvas.drawText(locStr, left+1, top+1, textPaint);//TODO add logic as to never draw off the view
         }
+    }
+
+    public int getSelectionHeight() {
+        return Math.abs(this.orig.y - this.other.y);
+    }
+
+    public int getSelectionWidth() {
+        return Math.abs(this.orig.x - this.other.x);
     }
 }
