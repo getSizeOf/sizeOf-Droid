@@ -13,7 +13,7 @@ To generate a data set do the following:
 
 2. Open the app
 
-3. Starting @ 5cm from your phone focus on the object and press record data point.
+3. Starting @ 5cm from your phone focus on the object (tap) and press record data point.
 
 4. Move your phone back 3cm and repeat until you reach 80cm.
 
