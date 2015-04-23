@@ -40,10 +40,10 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
         //calibration data output file
-        this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX.csv");
+        this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/dataset.csv");
         int i = 0;
         while(this.file.exists())
-            this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX_" +
+            this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/dataset_" +
                     i++ + ".csv");//increment i after creating File obj
         //Remove notification bar
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
