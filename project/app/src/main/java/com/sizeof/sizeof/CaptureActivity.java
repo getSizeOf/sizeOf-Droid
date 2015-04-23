@@ -22,6 +22,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.Callback {
     private final double[] DROID_MAXX_INF_FOCUS_DISTS = {1.218732, 2.043917, 6.329597};
@@ -39,7 +40,11 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
         //calibration data output file
-        this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX.txt");
+        this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX.csv");
+        int i = 0;
+        while(this.file.exists())
+            this.file = new File(this.getExternalFilesDir(null).getAbsolutePath() + "/DROID_MAXX_" +
+                    i++ + ".csv");//increment i after creating File obj
         //Remove notification bar
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //set content view AFTER ABOVE sequence (to avoid crash)
@@ -282,7 +287,7 @@ public class CaptureActivity extends ActionBarActivity implements SurfaceHolder.
         this.cam.getParameters().getFocusDistances(floats);
         if (!floats.equals(DROID_MAXX_INF_FOCUS_DISTS)) {//not inf focus distances
             Toast.makeText(getApplicationContext(), "Data Point Recorded", Toast.LENGTH_SHORT).show();
-            this.writeToOutput(floats[0] + ", " + floats[1] + ", " + floats[2]);//simple readable CSV
+            this.writeToOutput(floats[0] + "," + floats[1] + "," + floats[2]);//simple readable CSV
         }
         else
             Toast.makeText(getApplicationContext(), "Object Not In Range / Out of Focus",
